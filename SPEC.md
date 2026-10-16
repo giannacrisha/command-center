@@ -86,4 +86,4 @@ Supersedes the Figma frames where they differ.
 - No existing Command Queue Sheet was found in Drive, so `Code.gs` is a fresh script bound to a new "Command Center" Sheet.
 - Tasks tab gets a sixth column, "done on", so tasks finished today stay on today's list.
 - Approve also adds each approved block to the Tasks tab (due today) so it can be checked off.
-- Sort call uses Gemini's free tier (`gemini-3.8-flash`, JSON schema output) instead of Claude, so it costs nothing. Key in Script Properties as GEMINI_API_KEY. Free-tier prompts may be used by Google to improve its products.
+- Sort call uses Cloudflare Workers AI's free tier (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`, JSON mode) instead of Claude. About 85 of the 10,000 free daily neurons per sort. CF_ACCOUNT_ID and CF_API_TOKEN in Script Properties. Cloudflare does not train on Workers AI inputs.

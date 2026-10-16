@@ -3,7 +3,7 @@
  * Reads Google Calendar and the Tasks/Goals tabs, returns JSON, and writes only on taskDone,
  * goalProgress and approve. Nothing is ever deleted or sent.
  *
- * Script Properties: TOKEN (created by setup) and GEMINI_API_KEY (free at aistudio.google.com/apikey).
+ * Script Properties: TOKEN (created by setup), CF_ACCOUNT_ID and CF_API_TOKEN (Cloudflare Workers AI, free tier).
  */
 
 // ---------- edit these ----------
@@ -32,7 +32,7 @@ const CONFIG = {
   DAY_END_HOUR: 22,      // proposals stop at 10pm
   BUFFER_MIN: 10,        // gap kept around events and blocks
   BLOCK_MIN_MINUTES: 30, // tasks this long or longer get a time block
-  MODEL: 'gemini-3.8-flash', // any free-tier Gemini model id works here
+  MODEL: '@cf/meta/llama-3.3-70b-instruct-fp8-fast', // Workers AI model with JSON mode; ~85 of the 10,000 free daily neurons per sort
   CACHE_SECONDS: 60,
 };
 
@@ -59,7 +59,7 @@ function setup() {
   const props = PropertiesService.getScriptProperties();
   if (!props.getProperty('TOKEN')) props.setProperty('TOKEN', Utilities.getUuid().replace(/-/g, ''));
   Logger.log('Your token: ' + props.getProperty('TOKEN'));
-  if (!props.getProperty('GEMINI_API_KEY')) Logger.log('Add GEMINI_API_KEY in Project Settings > Script Properties.');
+  if (!props.getProperty('CF_API_TOKEN')) Logger.log('Add CF_ACCOUNT_ID and CF_API_TOKEN in Project Settings > Script Properties.');
 }
 
 // ---------- web app ----------
@@ -262,7 +262,7 @@ function approve({ blocks = [], tasks = [] }) {
 const clean = s => String(s || '').replace(/\s+/g, ' ').trim().slice(0, 120);
 const bust = () => CacheService.getScriptCache().remove('dash');
 
-// ---------- sort: Gemini turns the brain dump into tasks, then we find slots ----------
+// ---------- sort: Workers AI turns the brain dump into tasks, then we find slots ----------
 function sort({ text }) {
   text = String(text || '').trim();
   if (!text) throw new Error('Nothing to sort');
@@ -326,20 +326,22 @@ It is ${Utilities.formatDate(new Date(), tz, "EEEE, MMMM d, yyyy 'at' h:mm a")}.
 }
 
 function askModel(text) {
-  const key = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
-  if (!key) throw new Error('GEMINI_API_KEY is not set in Script Properties');
+  const props = PropertiesService.getScriptProperties();
+  const account = props.getProperty('CF_ACCOUNT_ID');
+  const token = props.getProperty('CF_API_TOKEN');
+  if (!account || !token) throw new Error('CF_ACCOUNT_ID and CF_API_TOKEN must be set in Script Properties');
 
   const schema = {
-    type: 'OBJECT',
+    type: 'object',
     properties: {
       tasks: {
-        type: 'ARRAY',
+        type: 'array',
         items: {
-          type: 'OBJECT',
+          type: 'object',
           properties: {
-            title: { type: 'STRING' },
-            category: { type: 'STRING', enum: CATS },
-            minutes: { type: 'INTEGER' },
+            title: { type: 'string' },
+            category: { type: 'string', enum: CATS },
+            minutes: { type: 'integer' },
           },
           required: ['title', 'category', 'minutes'],
         },
@@ -348,29 +350,30 @@ function askModel(text) {
     required: ['tasks'],
   };
 
-  const res = UrlFetchApp.fetch(`https://generativelanguage.googleapis.com/v1beta/models/${CONFIG.MODEL}:generateContent`, {
+  const res = UrlFetchApp.fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/ai/run/${CONFIG.MODEL}`, {
     method: 'post',
     contentType: 'application/json',
     muteHttpExceptions: true,
-    headers: { 'x-goog-api-key': key },
+    headers: { Authorization: 'Bearer ' + token },
     payload: JSON.stringify({
-      systemInstruction: { parts: [{ text: sortPrompt() }] },
-      contents: [{ role: 'user', parts: [{ text }] }],
-      generationConfig: { responseMimeType: 'application/json', responseSchema: schema },
+      messages: [{ role: 'system', content: sortPrompt() }, { role: 'user', content: text }],
+      response_format: { type: 'json_schema', json_schema: schema },
+      max_tokens: 1500,
     }),
   });
 
   const body = JSON.parse(res.getContentText());
-  if (res.getResponseCode() === 429) throw new Error('Free-tier limit reached. Try again in a minute.');
-  if (res.getResponseCode() !== 200) throw new Error('Gemini API: ' + (body.error?.message || res.getResponseCode()));
-  if (body.promptFeedback?.blockReason) throw new Error('Gemini declined to sort that. Try rephrasing.');
-  const cand = body.candidates?.[0];
-  if (cand?.finishReason === 'MAX_TOKENS') throw new Error('That was too long to sort in one go. Try splitting it.');
-  const out = cand?.content?.parts?.map(p => p.text || '').join('');
-  if (!out) throw new Error('Gemini returned nothing. Try again.');
-  return JSON.parse(out).tasks
+  if (!body.success) {
+    const msg = (body.errors || []).map(e => e.message).join('; ') || res.getResponseCode();
+    if (res.getResponseCode() === 429 || /neuron|quota|limit/i.test(msg)) throw new Error('Free daily limit reached. It resets at midnight UTC (8pm Eastern in summer, 7pm in winter).');
+    throw new Error('Workers AI: ' + msg);
+  }
+  const out = body.result?.response;
+  const parsed = typeof out === 'string' ? JSON.parse(out) : out;
+  if (!parsed?.tasks) throw new Error('The model returned something unexpected. Try again.');
+  return parsed.tasks
     .filter(x => x.title && CATS.includes(x.category))
-    .map(x => ({ title: clean(x.title), category: x.category, minutes: Math.min(240, Math.max(5, Math.round(x.minutes / 5) * 5)) }));
+    .map(x => ({ title: clean(x.title), category: x.category, minutes: Math.min(240, Math.max(5, Math.round(Number(x.minutes) / 5) * 5 || 15)) }));
 }
 
 // Run from the editor to see the exact prompt and a live result without touching the calendar.

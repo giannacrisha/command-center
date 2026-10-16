@@ -6,9 +6,13 @@ The pages run in demo mode (mock data) until `API_URL` in `shared.js` is set. To
 
 1. Create a Google Sheet named **Command Center**.
 2. In the Sheet, open **Extensions > Apps Script**. Replace the contents of `Code.gs` with this repo's `Code.gs`, then save.
-3. Pick `setup` in the function dropdown and click **Run**. Approve the permissions (Sheets, Calendar, external requests to Gemini). This creates the **Tasks** and **Goals** tabs and a secret token.
+3. Pick `setup` in the function dropdown and click **Run**. Approve the permissions (Sheets, Calendar, external requests to Cloudflare). This creates the **Tasks** and **Goals** tabs and a secret token.
 4. Open **Executions** (left sidebar) and copy the token from the `setup` log. Keep it private, since it's the only thing protecting the API.
-5. Get a free Gemini API key at aistudio.google.com/apikey (no credit card). In Apps Script, open **Project Settings > Script Properties** and add it as `GEMINI_API_KEY`. On the free tier, Google may use your prompts to improve its products, so keep anything sensitive out of brain dumps.
+5. Set up Cloudflare Workers AI. It's free, needs no card, and Cloudflare doesn't train on your text.
+   - Sign up at dash.cloudflare.com, then open **AI > Workers AI**.
+   - Click **Use REST API**. Copy the **Account ID**, then click **Create a Workers AI API Token** and copy the token.
+   - In Apps Script, open **Project Settings > Script Properties** and add `CF_ACCOUNT_ID` and `CF_API_TOKEN`.
+   - The free plan gives 10,000 neurons a day. One sort uses about 85, so that's roughly 100 sorts a day. The count resets at midnight UTC.
 6. Fill in the **Goals** tab with one row per category: category, goal, current, target, unit.
 7. Edit `CONFIG` at the top of `Code.gs` so events get the right category:
    - `BY_CALENDAR` maps a calendar name to a category.
@@ -74,7 +78,7 @@ The remote's d-pad works as follows: left and right switch between Day and Week,
 |---|---|
 | Phone: check a task | Tasks tab: `done` and `done on` for that row |
 | Phone: update a goal | Goals tab: `current` for that row |
-| Phone: Sort my day | Nothing. It only calls Gemini and returns proposals. |
+| Phone: Sort my day | Nothing. It only calls Workers AI and returns proposals. |
 | Phone: Approve | New events on the "Command Center" calendar, new rows in the Tasks tab |
 
 Nothing is ever deleted or sent.
