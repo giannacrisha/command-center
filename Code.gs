@@ -3,7 +3,7 @@
  * Reads Google Calendar and the Tasks/Goals tabs, returns JSON, and writes only on taskDone,
  * goalProgress and approve. Nothing is ever deleted or sent.
  *
- * Script Properties: TOKEN (created by setup) and ANTHROPIC_API_KEY.
+ * Script Properties: TOKEN (created by setup) and GEMINI_API_KEY (free at aistudio.google.com/apikey).
  */
 
 // ---------- edit these ----------
@@ -32,7 +32,7 @@ const CONFIG = {
   DAY_END_HOUR: 22,      // proposals stop at 10pm
   BUFFER_MIN: 10,        // gap kept around events and blocks
   BLOCK_MIN_MINUTES: 30, // tasks this long or longer get a time block
-  MODEL: 'claude-sonnet-5-5',
+  MODEL: 'gemini-3.8-flash', // any free-tier Gemini model id works here
   CACHE_SECONDS: 60,
 };
 
@@ -59,7 +59,7 @@ function setup() {
   const props = PropertiesService.getScriptProperties();
   if (!props.getProperty('TOKEN')) props.setProperty('TOKEN', Utilities.getUuid().replace(/-/g, ''));
   Logger.log('Your token: ' + props.getProperty('TOKEN'));
-  if (!props.getProperty('ANTHROPIC_API_KEY')) Logger.log('Add ANTHROPIC_API_KEY in Project Settings > Script Properties.');
+  if (!props.getProperty('GEMINI_API_KEY')) Logger.log('Add GEMINI_API_KEY in Project Settings > Script Properties.');
 }
 
 // ---------- web app ----------
@@ -262,13 +262,13 @@ function approve({ blocks = [], tasks = [] }) {
 const clean = s => String(s || '').replace(/\s+/g, ' ').trim().slice(0, 120);
 const bust = () => CacheService.getScriptCache().remove('dash');
 
-// ---------- sort: Claude turns the brain dump into tasks, then we find slots ----------
+// ---------- sort: Gemini turns the brain dump into tasks, then we find slots ----------
 function sort({ text }) {
   text = String(text || '').trim();
   if (!text) throw new Error('Nothing to sort');
   if (text.length > 6000) throw new Error('That is a lot. Trim it under 6000 characters.');
 
-  const tasks = askClaude(text).map(x => ({ ...x, id: Utilities.getUuid() }));
+  const tasks = askModel(text).map(x => ({ ...x, id: Utilities.getUuid() }));
   const now = new Date();
   const from = roundUp(now, 5);
   const to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), CONFIG.DAY_END_HOUR);
@@ -325,56 +325,50 @@ ${goals || '- (none yet)'}
 It is ${Utilities.formatDate(new Date(), tz, "EEEE, MMMM d, yyyy 'at' h:mm a")}.`;
 }
 
-function askClaude(text) {
-  const key = PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY');
-  if (!key) throw new Error('ANTHROPIC_API_KEY is not set in Script Properties');
+function askModel(text) {
+  const key = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+  if (!key) throw new Error('GEMINI_API_KEY is not set in Script Properties');
 
   const schema = {
-    type: 'object',
+    type: 'OBJECT',
     properties: {
       tasks: {
-        type: 'array',
+        type: 'ARRAY',
         items: {
-          type: 'object',
+          type: 'OBJECT',
           properties: {
-            title: { type: 'string' },
-            category: { type: 'string', enum: CATS },
-            minutes: { type: 'integer' },
+            title: { type: 'STRING' },
+            category: { type: 'STRING', enum: CATS },
+            minutes: { type: 'INTEGER' },
           },
           required: ['title', 'category', 'minutes'],
-          additionalProperties: false,
         },
       },
     },
     required: ['tasks'],
-    additionalProperties: false,
   };
 
-  const res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+  const res = UrlFetchApp.fetch(`https://generativelanguage.googleapis.com/v1beta/models/${CONFIG.MODEL}:generateContent`, {
     method: 'post',
     contentType: 'application/json',
     muteHttpExceptions: true,
-    headers: {
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-      'anthropic-beta': 'server-side-fallback-2026-07-01',
-    },
+    headers: { 'x-goog-api-key': key },
     payload: JSON.stringify({
-      model: CONFIG.MODEL,
-      max_tokens: 4000,
-      system: sortPrompt(),
-      messages: [{ role: 'user', content: text }],
-      output_config: { effort: 'low', format: { type: 'json_schema', schema } },
-      fallbacks: 'default', // if a safety classifier declines, Anthropic retries on its recommended fallback model
+      systemInstruction: { parts: [{ text: sortPrompt() }] },
+      contents: [{ role: 'user', parts: [{ text }] }],
+      generationConfig: { responseMimeType: 'application/json', responseSchema: schema },
     }),
   });
 
   const body = JSON.parse(res.getContentText());
-  if (res.getResponseCode() !== 200) throw new Error('Claude API: ' + (body.error?.message || res.getResponseCode()));
-  if (body.stop_reason === 'refusal') throw new Error('Claude declined to sort that. Try rephrasing.');
-  if (body.stop_reason === 'max_tokens') throw new Error('That was too long to sort in one go. Try splitting it.');
-  const out = body.content.find(b => b.type === 'text');
-  return JSON.parse(out.text).tasks
+  if (res.getResponseCode() === 429) throw new Error('Free-tier limit reached. Try again in a minute.');
+  if (res.getResponseCode() !== 200) throw new Error('Gemini API: ' + (body.error?.message || res.getResponseCode()));
+  if (body.promptFeedback?.blockReason) throw new Error('Gemini declined to sort that. Try rephrasing.');
+  const cand = body.candidates?.[0];
+  if (cand?.finishReason === 'MAX_TOKENS') throw new Error('That was too long to sort in one go. Try splitting it.');
+  const out = cand?.content?.parts?.map(p => p.text || '').join('');
+  if (!out) throw new Error('Gemini returned nothing. Try again.');
+  return JSON.parse(out).tasks
     .filter(x => x.title && CATS.includes(x.category))
     .map(x => ({ title: clean(x.title), category: x.category, minutes: Math.min(240, Math.max(5, Math.round(x.minutes / 5) * 5)) }));
 }

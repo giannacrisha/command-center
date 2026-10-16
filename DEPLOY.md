@@ -6,15 +6,15 @@ The pages run in demo mode (mock data) until `API_URL` in `shared.js` is set. To
 
 1. Create a Google Sheet named **Command Center**.
 2. In the Sheet, open **Extensions > Apps Script**. Replace the contents of `Code.gs` with this repo's `Code.gs`, then save.
-3. Pick `setup` in the function dropdown and click **Run**. Approve the permissions (Sheets, Calendar, external requests). This creates the **Tasks** and **Goals** tabs and a secret token.
+3. Pick `setup` in the function dropdown and click **Run**. Approve the permissions (Sheets, Calendar, external requests to Gemini). This creates the **Tasks** and **Goals** tabs and a secret token.
 4. Open **Executions** (left sidebar) and copy the token from the `setup` log. Keep it private, since it's the only thing protecting the API.
-5. Open **Project Settings > Script Properties**. Add `ANTHROPIC_API_KEY` with your key from console.anthropic.com.
+5. Get a free Gemini API key at aistudio.google.com/apikey (no credit card). In Apps Script, open **Project Settings > Script Properties** and add it as `GEMINI_API_KEY`. On the free tier, Google may use your prompts to improve its products, so keep anything sensitive out of brain dumps.
 6. Fill in the **Goals** tab with one row per category: category, goal, current, target, unit.
 7. Edit `CONFIG` at the top of `Code.gs` so events get the right category:
    - `BY_CALENDAR` maps a calendar name to a category.
    - `BY_KEYWORD` lists title words for each category.
    - A `[Career]`-style tag in an event title always wins.
-8. Optional: run `testSort` to log the exact Claude prompt and a sample sort. It writes nothing.
+8. Optional: run `testSort` to log the exact prompt and a sample sort. It writes nothing.
 9. Click **Deploy > New deployment** and choose type **Web app**:
    - Execute as: **Me**
    - Who has access: **Anyone**. The browser can't send Google sign-in to Apps Script, so the token does the protecting.
@@ -74,7 +74,7 @@ The remote's d-pad works as follows: left and right switch between Day and Week,
 |---|---|
 | Phone: check a task | Tasks tab: `done` and `done on` for that row |
 | Phone: update a goal | Goals tab: `current` for that row |
-| Phone: Sort my day | Nothing. It only calls Claude and returns proposals. |
+| Phone: Sort my day | Nothing. It only calls Gemini and returns proposals. |
 | Phone: Approve | New events on the "Command Center" calendar, new rows in the Tasks tab |
 
 Nothing is ever deleted or sent.
