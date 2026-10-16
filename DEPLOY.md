@@ -13,7 +13,9 @@ The pages run in demo mode (mock data) until `API_URL` in `shared.js` is set. To
    - Click **Use REST API**. Copy the **Account ID**, then click **Create a Workers AI API Token** and copy the token.
    - In Apps Script, open **Project Settings > Script Properties** and add `CF_ACCOUNT_ID` and `CF_API_TOKEN`.
    - The free plan gives 10,000 neurons a day. One sort uses about 85, so that's roughly 100 sorts a day. The count resets at midnight UTC.
-6. Fill in the **Goals** tab with one row per category: category, goal, current, target, unit.
+6. Fill in the tabs. (Already ran `setup` before? Run it again. It adds the new tabs and columns without touching your data.)
+   - **Goals**: category, goal, current, target, unit, by (deadline), status. Set status to `active` for up to 4 goals; those go on the TV. Use `someday` for everything else, and it shows only in a list on the phone's Goals tab.
+   - **Habits**: one row per daily habit: habit, category, target (times per day, e.g. 5 for job apps), unit. You check them off on the phone. **Habit Log** fills itself in, one row per habit per day, and streaks are counted from it.
 7. Edit `CONFIG` at the top of `Code.gs` so events get the right category:
    - `BY_CALENDAR` maps a calendar name to a category.
    - `BY_KEYWORD` lists title words for each category.

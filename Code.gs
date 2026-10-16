@@ -1,7 +1,7 @@
 /**
  * Command Center backend: one Apps Script web app bound to the Command Center Google Sheet.
- * Reads Google Calendar and the Tasks/Goals tabs, returns JSON, and writes only on taskDone,
- * goalProgress and approve. Nothing is ever deleted or sent.
+ * Reads Google Calendar and the Tasks/Goals/Habits tabs, returns JSON, and writes only on taskDone,
+ * goalProgress, habitLog and approve. Nothing is ever deleted or sent.
  *
  * Script Properties: TOKEN (created by setup), CF_ACCOUNT_ID and CF_API_TOKEN (Cloudflare Workers AI, free tier).
  */
@@ -43,11 +43,16 @@ function setup() {
   const ss = SpreadsheetApp.getActive();
   const tabs = {
     Tasks: ['task', 'category', 'done', 'due', 'minutes', 'done on'],
-    Goals: ['category', 'goal', 'current', 'target', 'unit'],
+    Goals: ['category', 'goal', 'current', 'target', 'unit', 'by', 'status'],
+    Habits: ['habit', 'category', 'target', 'unit'],
+    'Habit Log': ['date', 'habit', 'count'],
   };
+  // Safe to re-run: creates missing tabs and appends missing header columns, never touches data.
   Object.entries(tabs).forEach(([name, head]) => {
     const sh = ss.getSheetByName(name) || ss.insertSheet(name);
-    if (!sh.getRange(1, 1).getValue()) sh.getRange(1, 1, 1, head.length).setValues([head]).setFontWeight('bold');
+    const have = sh.getLastColumn() ? sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(h => String(h).trim().toLowerCase()).filter(String) : [];
+    const missing = head.filter(h => !have.includes(h));
+    if (missing.length) sh.getRange(1, have.length + 1, 1, missing.length).setValues([missing]).setFontWeight('bold');
     sh.setFrozenRows(1);
   });
   const tasks = ss.getSheetByName('Tasks');
@@ -55,6 +60,10 @@ function setup() {
   const cats = SpreadsheetApp.newDataValidation().requireValueInList(CATS).build();
   tasks.getRange('B2:B').setDataValidation(cats);
   ss.getSheetByName('Goals').getRange('A2:A').setDataValidation(cats);
+  ss.getSheetByName('Habits').getRange('B2:B').setDataValidation(cats);
+  const goals = table('Goals');
+  goals.sh.getRange(2, goals.col('status') + 1, goals.sh.getMaxRows() - 1)
+    .setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(['active', 'someday']).build());
 
   const props = PropertiesService.getScriptProperties();
   if (!props.getProperty('TOKEN')) props.setProperty('TOKEN', Utilities.getUuid().replace(/-/g, ''));
@@ -76,6 +85,7 @@ function doPost(e) {
     switch (body.action) {
       case 'taskDone': return taskDone(body);
       case 'goalProgress': return goalProgress(body);
+      case 'habitLog': return habitLog(body);
       case 'sort': return sort(body);
       case 'approve': return approve(body);
       default: throw new Error('Unknown action');
@@ -104,7 +114,7 @@ function dashboard() {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
   const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 8); // +1 day so Saturday night can show Sunday
-  const out = { events: readEvents(start, end), tasks: readTasks(), goals: readGoals(), syncedAt: now.toISOString() };
+  const out = { events: readEvents(start, end), tasks: readTasks(), goals: readGoals(), habits: readHabits(), syncedAt: now.toISOString() };
   try { cache.put('dash', JSON.stringify(out), CONFIG.CACHE_SECONDS); } catch (err) { /* over 100KB: skip caching */ }
   return out;
 }
@@ -183,7 +193,7 @@ function readTasks() {
 
 function readGoals() {
   const t = table('Goals');
-  const c = { cat: t.col('category'), goal: t.col('goal'), cur: t.col('current'), tgt: t.col('target'), unit: t.col('unit') };
+  const c = { cat: t.col('category'), goal: t.col('goal'), cur: t.col('current'), tgt: t.col('target'), unit: t.col('unit'), by: t.col('by'), status: t.col('status') };
   return t.values.slice(1).map((r, i) => ({
     row: i + 2,
     category: CATS.includes(r[c.cat]) ? r[c.cat] : CONFIG.DEFAULT_CATEGORY,
@@ -191,7 +201,43 @@ function readGoals() {
     current: Number(r[c.cur]) || 0,
     target: Number(r[c.tgt]) || 1,
     unit: String(r[c.unit] || ''),
+    by: c.by >= 0 ? ymd(r[c.by]) : '',
+    status: c.status >= 0 && /someday/i.test(r[c.status]) ? 'someday' : 'active', // blank counts as active
   })).filter(x => x.goal);
+}
+
+// Habits with today's count and the current streak (days in a row the target was met).
+function readHabits() {
+  const ss = SpreadsheetApp.getActive();
+  if (!ss.getSheetByName('Habits')) return [];
+  const t = table('Habits');
+  const c = { name: t.col('habit'), cat: t.col('category'), tgt: t.col('target'), unit: t.col('unit') };
+  const habits = t.values.slice(1).map((r, i) => ({
+    row: i + 2,
+    habit: String(r[c.name]).trim(),
+    category: CATS.includes(r[c.cat]) ? r[c.cat] : CONFIG.DEFAULT_CATEGORY,
+    target: Number(r[c.tgt]) || 1,
+    unit: String(r[c.unit] || ''),
+  })).filter(h => h.habit);
+
+  const counts = {}; // habit -> { 'yyyy-MM-dd': count }
+  if (ss.getSheetByName('Habit Log')) {
+    const l = table('Habit Log');
+    l.values.slice(1).forEach(r => {
+      const h = String(r[l.col('habit')]).trim();
+      counts[h] = counts[h] || {};
+      counts[h][ymd(r[l.col('date')])] = Number(r[l.col('count')]) || 0;
+    });
+  }
+  const now = new Date();
+  const day = n => ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - n, 12));
+  return habits.map(h => {
+    const log = counts[h.habit] || {};
+    const today = log[day(0)] || 0;
+    let streak = 0;
+    for (let n = today >= h.target ? 0 : 1; n < 400 && (log[day(n)] || 0) >= h.target; n++) streak++;
+    return { ...h, today, streak };
+  });
 }
 
 // ---------- writes ----------
@@ -210,6 +256,31 @@ function goalProgress({ row, goal, current }) {
   if (String(t.values[row - 1]?.[t.col('goal')] ?? '').trim() !== goal) throw new Error('The sheet changed. Refresh and try again.');
   if (typeof current !== 'number' || !isFinite(current)) throw new Error('Progress must be a number');
   t.sh.getRange(row, t.col('current') + 1).setValue(current);
+  bust();
+  return { ok: true };
+}
+
+// Sets today's count for one habit in the Habit Log (one row per habit per day).
+function habitLog({ habit, count }) {
+  if (typeof count !== 'number' || !isFinite(count) || count < 0) throw new Error('Count must be a number');
+  if (!readHabits().some(h => h.habit === habit)) throw new Error('The sheet changed. Refresh and try again.');
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const l = table('Habit Log');
+    const today = ymd(new Date());
+    const i = l.values.findIndex((r, k) => k > 0 && ymd(r[l.col('date')]) === today && String(r[l.col('habit')]).trim() === habit);
+    if (i > 0) l.sh.getRange(i + 1, l.col('count') + 1).setValue(count);
+    else {
+      const row = [];
+      row[l.col('date')] = today;
+      row[l.col('habit')] = habit;
+      row[l.col('count')] = count;
+      l.sh.appendRow(Array.from(row, v => v ?? ''));
+    }
+  } finally {
+    lock.releaseLock();
+  }
   bust();
   return { ok: true };
 }
@@ -309,7 +380,7 @@ function roundUp(d, mins) {
 
 function sortPrompt() {
   const tz = Session.getScriptTimeZone();
-  const goals = readGoals().map(g => `- ${g.category}: ${g.goal} (${g.current} of ${g.target} ${g.unit})`).join('\n');
+  const goals = readGoals().filter(g => g.status === 'active').map(g => `- ${g.category}: ${g.goal} (${g.current} of ${g.target} ${g.unit})`).join('\n');
   return `You turn a spoken brain dump into a clean task list for Gi, a college student. The text was dictated with Wispr Flow, so expect filler words, run-on sentences and self-corrections. When Gi corrects something ("actually, make that Friday"), keep only the final version.
 
 Rules:

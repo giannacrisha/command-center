@@ -86,4 +86,6 @@ Supersedes the Figma frames where they differ.
 - No existing Command Queue Sheet was found in Drive, so `Code.gs` is a fresh script bound to a new "Command Center" Sheet.
 - Tasks tab gets a sixth column, "done on", so tasks finished today stay on today's list.
 - Approve also adds each approved block to the Tasks tab (due today) so it can be checked off.
+- Goals have `by` (deadline) and `status` (active/someday). TV and phone cards show only active goals, with days left. Someday goals are listed on the phone only.
+- Habits tab (habit, category, target, unit) plus Habit Log (date, habit, count). Phone Today tab checks them off, with a +/- counter when the target is above 1. TV Day view shows a Habits card in place of the mini month, and the Night view lists habits left today. Streak = consecutive days the target was met.
 - Sort call uses Cloudflare Workers AI's free tier (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`, JSON mode) instead of Claude. About 85 of the 10,000 free daily neurons per sort. CF_ACCOUNT_ID and CF_API_TOKEN in Script Properties. Cloudflare does not train on Workers AI inputs.

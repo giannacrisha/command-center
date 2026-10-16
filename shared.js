@@ -119,10 +119,19 @@ const CC = (() => {
         { row: 6, task: 'Log Workday hours', category: 'Career', done: true, doneOn: today, due: today, minutes: 5 },
       ],
       goals: [
-        { row: 2, category: 'Academic', goal: 'Finish ANTH 138A paper draft', current: 2, target: 4, unit: 'readings' },
-        { row: 3, category: 'Career', goal: 'Summer 2027 design eng internship', current: 6, target: 15, unit: 'apps' },
-        { row: 4, category: 'Social', goal: 'Recruit DeisHacks organizers', current: 3, target: 7, unit: 'seats' },
-        { row: 5, category: 'Personal', goal: 'Hold the cut', current: 4, target: 7, unit: 'protein days' },
+        { row: 2, category: 'Academic', goal: 'Finish the engineering group project', current: 1, target: 4, unit: 'milestones', by: isoDate(addDays(n, 56)), status: 'active' },
+        { row: 3, category: 'Career', goal: 'Ship makerspace management system v1', current: 2, target: 6, unit: 'features', by: isoDate(addDays(n, 45)), status: 'active' },
+        { row: 4, category: 'Social', goal: 'Secure DeisHacks sponsors', current: 3, target: 8, unit: 'sponsors', by: isoDate(addDays(n, 12)), status: 'active' },
+        { row: 5, category: 'Personal', goal: 'Grow my savings fund', current: 400, target: 1000, unit: 'dollars', by: isoDate(addDays(n, 77)), status: 'active' },
+        { row: 6, category: 'Personal', goal: 'Make an animated series', current: 0, target: 1, unit: '', by: '', status: 'someday' },
+        { row: 7, category: 'Career', goal: 'Launch the torta business with Edgar', current: 0, target: 1, unit: '', by: '', status: 'someday' },
+        { row: 8, category: 'Personal', goal: 'Build a dream recorder robot', current: 0, target: 1, unit: '', by: '', status: 'someday' },
+      ],
+      habits: [
+        { row: 2, habit: 'Spanish practice', category: 'Personal', target: 1, unit: 'session', today: 1, streak: 12 },
+        { row: 3, habit: 'Job applications', category: 'Career', target: 5, unit: 'apps', today: 3, streak: 0 },
+        { row: 4, habit: 'Skincare and teeth', category: 'Personal', target: 1, unit: '', today: 1, streak: 5 },
+        { row: 5, habit: 'Hit protein goal', category: 'Personal', target: 1, unit: '', today: 0, streak: 3 },
       ],
       syncedAt: new Date().toISOString(),
     };
@@ -148,10 +157,20 @@ const CC = (() => {
     };
   }
 
+  const activeGoals = data => data.goals.filter(g => g.status !== 'someday');
+
+  // "12 days left", "due today", "3 days late". late=true when past the date.
+  function due(by, n) {
+    if (!by) return null;
+    const days = Math.round((new Date(by + 'T00:00') - startOfDay(n)) / DAY);
+    const text = days > 1 ? `${days} days left` : days === 1 ? 'due tomorrow' : days === 0 ? 'due today' : `${-days} day${days === -1 ? '' : 's'} late`;
+    return { text, late: days < 0, date: new Date(by + 'T12:00') };
+  }
+
   return {
     CATS, mock, store, now, get, post, hasToken: () => !!token || mock,
     setToken(t) { token = t; store.set('cc-token', t); },
     startOfDay, addDays, startOfWeek, sameDay, isoDate, fmtT, fmtTA, hourLabel, fmtDate, fmtDur, ago, esc,
-    eventsOn, todaysTasks,
+    eventsOn, todaysTasks, activeGoals, due,
   };
 })();

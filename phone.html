@@ -84,7 +84,16 @@ section { display: flex; flex-direction: column; gap: 8px; }
 .task input:checked + .box svg { display: block; }
 .task .t { flex: 1; }
 .task input:checked ~ .t { color: var(--muted); text-decoration: line-through; }
+.task input[data-habit]:checked ~ .t { text-decoration: none; }
 .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--acc); flex: none; }
+
+/* habits */
+.hrow { min-height: 52px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--grid); }
+.hrow .t { flex: 1; min-width: 0; }
+.hrow .t small, .task .t small { display: block; color: var(--muted); font-size: 13px; }
+.hstep { width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--acc); background: var(--card); color: var(--acc); font-size: 22px; font-weight: 700; flex: none; }
+.hcount { min-width: 48px; text-align: center; font-weight: 700; }
+.hcount.met { color: var(--acc); }
 
 /* week */
 .day h2 { display: flex; align-items: center; gap: 8px; color: var(--text); letter-spacing: 0; font-size: 17px; }
@@ -95,7 +104,11 @@ section { display: flex; flex-direction: column; gap: 8px; }
 
 /* goals */
 .goal { width: 100%; text-align: left; border: none; background: var(--fill); border-radius: 24px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow); }
-.goal .cat { font-size: 13px; font-weight: 700; letter-spacing: .1em; color: var(--acc); }
+.goal .cat { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 700; letter-spacing: .1em; color: var(--acc); }
+.goal .cat .due { color: var(--muted); letter-spacing: .04em; font-weight: 700; }
+.goal .cat .due.late { color: var(--now); }
+.some { min-height: 48px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--grid); }
+.some:last-child { border-bottom: none; }
 .goal .name { font-size: 19px; font-weight: 700; line-height: 1.25; }
 .bar { flex: 1; height: 8px; border-radius: 4px; background: var(--track); overflow: hidden; }
 .bar i { display: block; height: 100%; background: var(--acc); border-radius: 4px; }
@@ -220,9 +233,25 @@ function viewToday() {
       ${allDay.length ? `<div class="chips">${allDay.map(e => `<span class="chip c-${e.category}">${esc(e.title)}</span>`).join('')}</div>` : ''}
       ${rows || '<p class="empty">Nothing on the calendar today.</p>'}
     </section>
+    ${habitsSection()}
     <section><div class="row" style="justify-content:space-between"><h2>TASKS</h2><span class="muted small">${done} of ${tasks.length} done</span></div>
       <div>${tasks.map(t => `<label class="task c-${t.category}"><input type="checkbox" data-row="${t.row}" ${t.done ? 'checked' : ''}><span class="box">${ICON.check}</span><span class="t">${esc(t.task)}</span>${t.due && t.due !== today ? `<span class="muted small">${new Date(t.due + 'T12:00').toLocaleDateString('en-US', { weekday: 'short' })}</span>` : ''}</label>`).join('') || '<p class="empty">Nothing on the list.</p>'}</div>
     </section>`;
+}
+
+function habitsSection() {
+  const hs = state.data.habits || [];
+  if (!hs.length) return '';
+  const met = hs.filter(h => h.today >= h.target).length;
+  const streak = h => h.streak > 1 ? `<small>${h.streak}-day streak</small>` : '';
+  return `<section><div class="row" style="justify-content:space-between"><h2>HABITS</h2><span class="muted small">${met} of ${hs.length} done</span></div><div>
+    ${hs.map(h => h.target === 1
+      ? `<label class="task c-${h.category}"><input type="checkbox" data-habit="${esc(h.habit)}" ${h.today >= 1 ? 'checked' : ''}><span class="box">${ICON.check}</span><span class="t">${esc(h.habit)}${streak(h)}</span></label>`
+      : `<div class="hrow c-${h.category}"><span class="t">${esc(h.habit)}${streak(h)}</span>
+          <button class="hstep" data-act="habit-step" data-habit="${esc(h.habit)}" data-d="-1" aria-label="One less ${esc(h.unit || h.habit)}">−</button>
+          <span class="hcount${h.today >= h.target ? ' met' : ''}">${h.today}/${h.target}</span>
+          <button class="hstep" data-act="habit-step" data-habit="${esc(h.habit)}" data-d="1" aria-label="One more ${esc(h.unit || h.habit)}">+</button></div>`).join('')}
+  </div></section>`;
 }
 
 function viewWeek() {
@@ -238,17 +267,21 @@ function viewWeek() {
 }
 
 function viewGoals() {
-  return `<div class="head"><h1>Goals</h1><p class="muted small">Tap a goal to update it.</p></div>` + state.data.goals.map(g => {
+  const n = CC.now();
+  const dueTag = g => { const d = CC.due(g.by, n); return d ? `<span class="due${d.late ? ' late' : ''}">${d.text.toUpperCase()}</span>` : ''; };
+  const someday = state.data.goals.filter(g => g.status === 'someday');
+  return `<div class="head"><h1>Goals</h1><p class="muted small">Tap a goal to update it.</p></div>` + CC.activeGoals(state.data).map(g => {
     if (state.goalEdit === g.row) return `<form class="goal c-${g.category}" data-act="goal" data-row="${g.row}">
-      <div class="cat">${esc(g.category.toUpperCase())}</div><div class="name">${esc(g.goal)}</div>
+      <div class="cat">${esc(g.category.toUpperCase())}${dueTag(g)}</div><div class="name">${esc(g.goal)}</div>
       <div class="stepper"><button type="button" data-step="-1" aria-label="Decrease">−</button>
         <input name="v" type="number" inputmode="decimal" value="${g.current}" aria-label="Current progress">
         <button type="button" data-step="1" aria-label="Increase">+</button><span class="unit">of ${g.target} ${esc(g.unit)}</span></div>
       <div class="goal-actions"><button class="primary">Save</button><button type="button" class="ghost" data-act="goal-cancel">Cancel</button></div></form>`;
     return `<button class="goal c-${g.category}" data-act="goal-open" data-row="${g.row}">
-      <span class="cat">${esc(g.category.toUpperCase())}</span><span class="name">${esc(g.goal)}</span>
+      <span class="cat">${esc(g.category.toUpperCase())}${dueTag(g)}</span><span class="name">${esc(g.goal)}</span>
       <span class="prog"><span class="bar"><i style="width:${pct(g)}%"></i></span>${g.current} of ${g.target} ${esc(g.unit)}</span></button>`;
-  }).join('');
+  }).join('') + (someday.length ? `<section><h2>SOMEDAY</h2><p class="muted small">Set status to "active" in the Goals tab to put one on the dashboard.</p><div>
+    ${someday.map(g => `<div class="some c-${g.category}"><span class="dot"></span><span>${esc(g.goal)}</span></div>`).join('')}</div></section>` : '');
 }
 
 function viewCapture() {
@@ -356,6 +389,18 @@ async function toggleTask(row, done, input) {
   catch (err) { t.done = !done; t.doneOn = prev; input.checked = !done; toast(`Couldn't save: ${err.message}`); }
 }
 
+async function setHabit(name, count) {
+  const h = state.data.habits.find(x => x.habit === name);
+  const prev = { today: h.today, streak: h.streak };
+  const wasMet = h.today >= h.target;
+  h.today = Math.max(0, count);
+  const isMet = h.today >= h.target;
+  if (isMet !== wasMet) h.streak += isMet ? 1 : -1; // optimistic; the server recomputes on next load
+  render();
+  try { await CC.post('habitLog', { habit: name, count: h.today }); }
+  catch (err) { Object.assign(h, prev); render(); toast(`Couldn't save: ${err.message}`); }
+}
+
 async function saveGoal(form) {
   const row = +form.dataset.row, g = state.data.goals.find(x => x.row === row);
   const v = parseFloat(form.v.value);
@@ -398,13 +443,19 @@ document.addEventListener('click', e => {
     case 'rm-block': c.blocks = c.blocks.filter(b => b.id !== id); render(); break;
     case 'rm-task': c.tasks = c.tasks.filter(t => t.id !== id); render(); break;
     case 'goal-open': state.goalEdit = +el.dataset.row; render(); break;
+    case 'habit-step': {
+      const h = state.data.habits.find(x => x.habit === el.dataset.habit);
+      setHabit(h.habit, h.today + +el.dataset.d);
+      break;
+    }
     case 'goal-cancel': state.goalEdit = null; render(); break;
   }
 });
 
 document.addEventListener('change', e => {
   const t = e.target;
-  if (t.matches('.task input')) toggleTask(+t.dataset.row, t.checked, t);
+  if (t.matches('.task input[data-habit]')) setHabit(t.dataset.habit, t.checked ? 1 : 0);
+  else if (t.matches('.task input')) toggleTask(+t.dataset.row, t.checked, t);
   else if (t.dataset.f) { setBlockTime(t.dataset.id, t.dataset.f, t.value); render(); }
 });
 

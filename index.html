@@ -70,6 +70,13 @@ li.done { color: var(--muted); text-decoration: line-through; }
 li.done .ring { background: var(--acc); }
 .empty { font-size: 17px; color: var(--muted); padding: 6px 0; }
 
+.habits { padding: 14px 20px; display: flex; flex-direction: column; gap: 4px; }
+.habits h2 { font-size: 20px; color: var(--heading); }
+.habits ul { list-style: none; margin: 0; padding: 0; }
+.habits li { height: 30px; display: flex; align-items: center; gap: 12px; font-size: 16px; }
+.habits li .n { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.habits li .s { font-size: 14px; color: var(--muted); white-space: nowrap; }
+.habits li.met .ring { background: var(--acc); }
 .month { padding: 14px 18px; display: flex; flex-direction: column; gap: 6px; }
 .month .serif { font-size: 17px; }
 .month .g { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 2px; text-align: center; font-size: 14px; line-height: 22px; }
@@ -100,8 +107,10 @@ li.done .ring { background: var(--acc); }
 .goals { padding: 16px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
 .goals .head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 4px; }
 .goals h2 { font-size: 22px; color: var(--heading); }
-.goal { flex: 1; min-height: 0; background: var(--fill); border-radius: 18px; padding: 12px 16px; display: flex; flex-direction: column; justify-content: space-between; }
-.goal .cat { font-size: 13px; font-weight: 700; letter-spacing: .1em; color: var(--acc); }
+.goal { flex: 1; min-height: 0; max-height: 150px; background: var(--fill); border-radius: 18px; padding: 12px 16px; display: flex; flex-direction: column; justify-content: space-between; }
+.goal .cat { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 700; letter-spacing: .1em; color: var(--acc); }
+.goal .cat span { color: var(--muted); letter-spacing: .04em; white-space: nowrap; }
+.goal .cat span.late { color: var(--now); }
 .goal .name { font-size: 18px; font-weight: 700; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .bar { flex: 1; height: 8px; border-radius: 4px; background: var(--track); overflow: hidden; }
 .bar i { display: block; height: 100%; border-radius: 4px; background: var(--acc); }
@@ -230,11 +239,14 @@ function freeText(evs, from, day) {
   return 'free ' + gaps.slice(0, 2).map(([a, b, last]) => last ? `after ${CC.fmtTA(a)}` : `${CC.fmtT(a)} to ${CC.fmtT(b)}`).join(' and ');
 }
 
-function goalCards() {
-  return data.goals.map(g => {
+function goalCards(n) {
+  const goals = CC.activeGoals(data).slice(0, 4);
+  if (!goals.length) return '<div class="empty">Add goals in the Goals tab.</div>';
+  return goals.map(g => {
     const pct = Math.min(100, Math.round(g.current / g.target * 100)) || 0;
+    const d = CC.due(g.by, n);
     return `<div class="goal c-${g.category}">
-      <div class="cat">${esc(g.category.toUpperCase())}</div>
+      <div class="cat">${esc(g.category.toUpperCase())}${d ? `<span class="${d.late ? 'late' : ''}">${d.text.toUpperCase()}</span>` : ''}</div>
       <div class="name">${esc(g.goal)}</div>
       <div class="prog"><div class="bar"><i style="width:${pct}%"></i></div><span>${g.current} of ${g.target} ${esc(g.unit)}</span></div>
     </div>`;
@@ -246,6 +258,19 @@ function taskList(tasks, max) {
   const extra = tasks.length - max;
   return '<ul>' + tasks.slice(0, max).map(t => `<li class="c-${t.category}${t.done ? ' done' : ''}"><i class="ring">${t.done ? CHECK : ''}</i><span>${esc(t.task)}</span></li>`).join('') +
     (extra > 0 ? `<li class="muted">+${extra} more</li>` : '') + '</ul>';
+}
+
+// Daily habits: filled ring when today's target is met; count or streak on the right.
+function habitsCard(max) {
+  const hs = data.habits || [];
+  if (!hs.length) return '';
+  const rows = hs.slice(0, max).map(h => {
+    const met = h.today >= h.target;
+    const right = h.target > 1 && !met ? `${h.today}/${h.target}` : h.streak > 1 ? `${h.streak} days` : met ? 'done' : '';
+    return `<li class="c-${h.category}${met ? ' met' : ''}"><i class="ring">${met ? CHECK : ''}</i><span class="n">${esc(h.habit)}</span><span class="s">${right}</span></li>`;
+  }).join('');
+  const more = hs.length - max;
+  return `<section class="card habits"><h2>Habits</h2><ul>${rows}${more > 0 ? `<li class="muted">+${more} more</li>` : ''}</ul></section>`;
 }
 
 function month(n) {
@@ -288,7 +313,7 @@ function renderDay(n) {
     <div class="col">
       ${upNext(evs, n)}
       <section class="card list"><div class="head"><h2>Today's list</h2><span class="muted" style="font-size:14px">${done} of ${tasks.length} done</span></div>${taskList(tasks, 5)}</section>
-      ${month(n)}
+      ${data.habits?.length ? habitsCard(4) : month(n)}
     </div>
     <section class="card sched">
       <div class="sum"><b>${timed.length} event${timed.length === 1 ? '' : 's'}</b> · ${freeText(evs, from, day)}${allDay.length ? ' · all day: ' + allDay.map(e => esc(e.title)).join(', ') : ''}</div>
@@ -298,7 +323,7 @@ function renderDay(n) {
         ${now}
       </div>
     </section>
-    <section class="card goals"><div class="head"><h2>Goals</h2><span class="muted" style="font-size:14px">this week</span></div>${goalCards()}</section>
+    <section class="card goals"><div class="head"><h2>Goals</h2></div>${goalCards(n)}</section>
   </main>`;
 }
 
@@ -317,7 +342,7 @@ function renderWeek(n) {
     const now = isToday && y >= 0 && y <= END - START ? `<div class="nowline" style="left:-4px;top:${y * PX - 1}px"></div><div class="nowdot" style="left:-6px;top:${y * PX - 5}px;width:11px;height:11px"></div>` : '';
     return `<div class="${isToday ? 'is' : d < today ? 'past' : ''}">${evs}${now}</div>`;
   }).join('');
-  const strip = data.goals.map(g => {
+  const strip = CC.activeGoals(data).slice(0, 4).map(g => {
     const pct = Math.min(100, Math.round(g.current / g.target * 100)) || 0;
     return `<div class="goal c-${g.category}"><div class="top"><span>${esc(g.goal)}</span><span>${g.current} of ${g.target}</span></div><div class="bar"><i style="width:${pct}%"></i></div></div>`;
   }).join('');
@@ -338,10 +363,12 @@ function renderTomorrow(n) {
   const rows = evs.slice(0, 5).map(e => `<div class="r"><div class="tm">${e.allDay ? 'All day' : CC.fmtT(e.s)}</div>
     <div class="ev stack c-${e.category}"><b>${esc(e.title)}</b><span class="sub">${e.allDay ? '' : `${CC.fmtT(e.s)} to ${CC.fmtT(e.e)} · `}${esc(e.location || e.category)}</span></div></div>`).join('');
   const open = data.tasks.filter(t => !t.done);
+  const left = (data.habits || []).filter(h => h.today < h.target);
   return `<main class="night">
     <section class="card panel"><h2>On the calendar</h2><div class="muted" style="font-size:18px">${lead}</div><div class="agenda">${rows}</div></section>
-    <section class="card panel list"><div class="head"><h2>Carried over</h2><span class="muted" style="font-size:15px">${open.length} open</span></div>${taskList(open, 7)}</section>
-    <section class="card goals"><div class="head"><h2>Goals</h2></div>${goalCards()}</section>
+    <section class="card panel list"><div class="head"><h2>Carried over</h2><span class="muted" style="font-size:15px">${open.length} open</span></div>${taskList(open, left.length ? 4 : 7)}
+      ${data.habits?.length ? `<div class="head" style="margin-top:8px"><h2>Habits left today</h2></div>${left.length ? '<ul>' + left.slice(0, 3).map(h => `<li class="c-${h.category}"><i class="ring"></i><span>${esc(h.habit)}${h.target > 1 ? ` · ${h.today}/${h.target}` : ''}</span></li>`).join('') + '</ul>' : '<div class="empty">All done today.</div>'}` : ''}</section>
+    <section class="card goals"><div class="head"><h2>Goals</h2></div>${goalCards(n)}</section>
   </main>`;
 }
 
