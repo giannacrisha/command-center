@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700&family=Lora:wght@600&display=swap">
+<style>
+:root {
+  --bg: #fffdfa; --text: #3d2f1f; --heading: #90642f; --card: #ffffff; --muted: #6B5234;
+  --soft: #EDE5D8; --border: #E8DCC8; --grid: #F1EADF; --now: #e5534b;
+  --shadow: 0 4px 16px rgba(144,100,47,.12); --track: rgba(255,255,255,.75); --today: rgba(237,229,216,.35);
+}
+body.dark {
+  --bg: #1a1a1a; --text: #e8e0d0; --heading: #d8af78; --card: #242424; --muted: #a89a85;
+  --soft: #2e2a24; --border: #333; --grid: #2c2c2c; --shadow: none; --track: rgba(255,255,255,.1); --today: rgba(255,255,255,.03);
+}
+.c-Academic { --fill: #DCE6F0; --acc: #3F5F80; }
+.c-Career   { --fill: #F3E7C4; --acc: #7A5B12; }
+.c-Social   { --fill: #F5DCC8; --acc: #8A4A22; }
+.c-Personal { --fill: #E2EAD8; --acc: #4C6B3F; }
+body.dark .c-Academic { --fill: #1f2a35; --acc: #8fb3d6; }
+body.dark .c-Career   { --fill: #2f2919; --acc: #d9b45a; }
+body.dark .c-Social   { --fill: #33241b; --acc: #e09a6a; }
+body.dark .c-Personal { --fill: #232b1f; --acc: #9cbf86; }
+
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); }
+body { cursor: none; }
+#stage {
+  position: absolute; left: 0; top: 0; width: 1280px; height: 720px; box-sizing: border-box;
+  padding: 24px 44px 16px; display: flex; flex-direction: column; gap: 20px; transform-origin: 0 0;
+  color: var(--text); font-family: 'Atkinson Hyperlegible Next', sans-serif;
+}
+h1, h2, .serif { font-family: Lora, serif; font-weight: 600; margin: 0; }
+.card { background: var(--card); border-radius: 24px; box-shadow: var(--shadow); }
+
+header { height: 52px; display: flex; align-items: center; gap: 16px; flex: none; }
+.pill { height: 44px; padding: 0 22px; border-radius: 999px; border: 2px solid var(--border); display: flex; align-items: center; font-size: 17px; font-weight: 700; box-sizing: border-box; }
+.pill.on { background: var(--soft); border-color: var(--soft); color: var(--heading); }
+.arrows { display: flex; gap: 4px; color: var(--muted); }
+header h1 { flex: 1; font-size: 38px; color: var(--heading); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.switch { display: flex; padding: 4px; border-radius: 999px; background: var(--soft); font-size: 17px; font-weight: 700; color: var(--muted); }
+.switch span { padding: 9px 20px; border-radius: 999px; }
+.switch .on { background: var(--card); color: var(--text); }
+.clock { font-family: Lora, serif; font-weight: 600; font-size: 38px; min-width: 150px; text-align: right; }
+.clock small { font-size: 20px; margin-left: 6px; }
+
+main { flex: 1; min-height: 0; display: grid; gap: 20px; }
+.day { grid-template-columns: 272px minmax(0, 1fr) 312px; }
+.col { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.label { font-size: 14px; font-weight: 700; letter-spacing: .08em; color: var(--heading); }
+.muted { color: var(--muted); }
+
+.next { padding: 18px 20px; display: flex; flex-direction: column; gap: 6px; }
+.next .t { display: flex; align-items: center; gap: 10px; font-size: 28px; line-height: 1.1; }
+.next .t i { width: 6px; height: 34px; border-radius: 3px; background: var(--acc); flex: none; }
+.next .t span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.next .sub { font-size: 17px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.list { flex: 1; min-height: 0; padding: 16px 20px; display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
+.list .head { display: flex; align-items: baseline; justify-content: space-between; }
+.list h2 { font-size: 22px; color: var(--heading); }
+.list ul { list-style: none; margin: 0; padding: 0; }
+.list li { height: 34px; display: flex; align-items: center; gap: 12px; font-size: 17px; }
+.list li span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ring { width: 18px; height: 18px; border-radius: 50%; border: 3px solid var(--acc); box-sizing: border-box; flex: none; display: flex; align-items: center; justify-content: center; }
+li.done { color: var(--muted); text-decoration: line-through; }
+li.done .ring { background: var(--acc); }
+.empty { font-size: 17px; color: var(--muted); padding: 6px 0; }
+
+.month { padding: 14px 18px; display: flex; flex-direction: column; gap: 6px; }
+.month .serif { font-size: 17px; }
+.month .g { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 2px; text-align: center; font-size: 14px; line-height: 22px; }
+.month .dow { font-weight: 700; color: var(--muted); }
+.month .today { display: inline-block; width: 26px; border-radius: 11px; background: var(--heading); color: var(--card); font-weight: 700; }
+
+.sched { padding: 16px 20px 16px 12px; display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.sched .sum { padding-left: 60px; font-size: 16px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sched .sum b { color: var(--text); }
+.grid { position: relative; }
+.hl { position: absolute; right: 0; border-top: 1px solid var(--grid); }
+.hlab { position: absolute; left: 0; text-align: right; font-size: 14px; color: var(--muted); }
+.evs { position: absolute; top: 0; bottom: 0; right: 0; }
+.ev {
+  position: absolute; box-sizing: border-box; background: var(--fill); border-left: 4px solid var(--acc);
+  border-radius: 8px; padding: 5px 12px; overflow: hidden; color: var(--text);
+}
+.ev b { font-size: 17px; }
+.ev .sub { font-size: 15px; color: var(--muted); }
+.ev.row { display: flex; align-items: baseline; gap: 12px; white-space: nowrap; }
+.ev.row .sub { overflow: hidden; text-overflow: ellipsis; }
+.ev.stack { display: flex; flex-direction: column; gap: 2px; }
+.ev.one { white-space: nowrap; text-overflow: ellipsis; }
+.past { opacity: .55; }
+.nowline { position: absolute; right: 0; height: 3px; background: var(--now); border-radius: 2px; z-index: 2; }
+.nowdot { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--now); z-index: 2; }
+
+.goals { padding: 16px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.goals .head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 4px; }
+.goals h2 { font-size: 22px; color: var(--heading); }
+.goal { flex: 1; min-height: 0; background: var(--fill); border-radius: 18px; padding: 12px 16px; display: flex; flex-direction: column; justify-content: space-between; }
+.goal .cat { font-size: 13px; font-weight: 700; letter-spacing: .1em; color: var(--acc); }
+.goal .name { font-size: 18px; font-weight: 700; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.bar { flex: 1; height: 8px; border-radius: 4px; background: var(--track); overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 4px; background: var(--acc); }
+.prog { display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 700; }
+.prog span { white-space: nowrap; }
+
+.week { grid-template-rows: minmax(0, 1fr) 80px; gap: 14px; }
+.wk { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.wkhead { height: 58px; padding-left: 56px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; flex: none; }
+.wkhead div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.wkhead .dn { font-size: 14px; font-weight: 700; color: var(--muted); }
+.wkhead .num { font-family: Lora, serif; font-weight: 600; font-size: 24px; }
+.wkhead .is .dn { color: var(--heading); }
+.wkhead .is .num { width: 36px; height: 36px; border-radius: 50%; background: var(--heading); color: var(--card); font-size: 22px; display: flex; align-items: center; justify-content: center; }
+.cols { position: absolute; left: 56px; right: 0; top: 0; bottom: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.cols > div { position: relative; border-left: 1px solid var(--grid); }
+.cols > .is { background: var(--today); }
+.cols .ev { border-radius: 6px; padding: 3px 8px; font-size: 15px; font-weight: 700; line-height: 19px; }
+.strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.strip .goal { padding: 10px 16px; justify-content: center; gap: 8px; }
+.strip .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 16px; font-weight: 700; }
+.strip .top span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.strip .top span:last-child { font-size: 15px; color: var(--acc); white-space: nowrap; }
+.strip .bar { flex: none; }
+
+.night { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) 312px; }
+.panel { padding: 24px 28px; display: flex; flex-direction: column; gap: 16px; min-height: 0; overflow: hidden; }
+.panel h2 { font-size: 24px; color: var(--heading); }
+.agenda { display: flex; flex-direction: column; gap: 12px; }
+.agenda .r { display: flex; gap: 18px; }
+.agenda .tm { width: 92px; font-family: Lora, serif; font-weight: 600; font-size: 24px; padding-top: 10px; flex: none; }
+.agenda .ev { position: static; flex: 1; border-radius: 10px; padding: 12px 16px; }
+.agenda .ev b { font-size: 21px; }
+.agenda .ev .sub { font-size: 16px; }
+.night .list li { height: 40px; font-size: 19px; gap: 14px; }
+
+footer { height: 20px; display: flex; align-items: center; justify-content: space-between; font-size: 14px; color: var(--muted); flex: none; }
+.dots { display: flex; align-items: center; gap: 8px; }
+.dots i { width: 6px; height: 6px; border-radius: 3px; background: var(--border); }
+.dots i.on { width: 18px; background: var(--heading); }
+.warn { color: var(--now); }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script src="shared.js"></script>
+<script>
+// TV view: read-only. It only ever calls CC.get().
+const stage = document.getElementById('stage');
+const START = 8, END = 20;            // hour grid window
+const NIGHT_FROM = 20;                // after this hour, the Day slot shows tomorrow
+const DARK_FROM = 21, DARK_UNTIL = 7; // dark palette hours
+
+const cached = CC.store.get('cc-tv-last');
+let data = cached?.data || null;
+let syncedAt = cached?.at || 0;
+let failed = false;
+let view = 'day';
+let shift = 0;
+
+const ARROWS = `<div class="arrows"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></div>`;
+const CHECK = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--card)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>`;
+const { esc } = CC;
+
+// Scale the fixed 1280x720 stage to whatever viewport Fully Kiosk reports.
+// A few pixels of drift every refresh keeps static edges from burning in.
+const DRIFT = [[0, 0], [3, 2], [-3, 3], [2, -3], [-2, -2]];
+function fit() {
+  const s = Math.min(innerWidth / 1280, innerHeight / 720);
+  const [dx, dy] = DRIFT[shift % DRIFT.length];
+  stage.style.transform = `translate(${(innerWidth - 1280 * s) / 2 + dx}px, ${(innerHeight - 720 * s) / 2 + dy}px) scale(${s})`;
+}
+
+// Side-by-side lanes for overlapping events. Mutates each event with lane and lanes.
+function lanes(evs) {
+  let group = [], end = -Infinity;
+  const flush = () => {
+    const cols = [];
+    group.forEach(e => {
+      let i = cols.findIndex(c => c <= e.a);
+      if (i < 0) i = cols.push(0) - 1;
+      cols[i] = e.b; e.lane = i;
+    });
+    group.forEach(e => e.lanes = cols.length);
+    group = [];
+  };
+  evs.forEach(e => { if (e.a >= end && group.length) flush(); group.push(e); end = Math.max(end, e.b); });
+  if (group.length) flush();
+  return evs;
+}
+
+// Clip events to the hour window; a/b are minutes from midnight.
+function placed(day, px) {
+  return lanes(CC.eventsOn(data, day).filter(e => !e.allDay).map(e => ({
+    ...e,
+    a: Math.max(START * 60, (e.s - day) / 6e4),
+    b: Math.min(END * 60, (e.e - day) / 6e4),
+  })).filter(e => e.b > e.a)).map(e => ({ ...e, top: (e.a - START * 60) * px / 60, h: (e.b - e.a) * px / 60 }));
+}
+
+function hourLines(px, step, labelW) {
+  let h = '';
+  for (let hr = START; hr <= END; hr++) {
+    const y = (hr - START) * px;
+    h += `<div class="hl" style="left:${labelW + 4}px;top:${y}px"></div>`;
+    if ((hr - START) % step === 0) h += `<div class="hlab" style="width:${labelW - 6}px;top:${y - 9}px">${CC.hourLabel(hr)}</div>`;
+  }
+  return h;
+}
+
+function laneStyle(e, inset) {
+  return `top:${e.top + 1}px;height:${Math.max(e.h - 2, 22)}px;left:calc(${e.lane / e.lanes * 100}% + ${inset}px);width:calc(${100 / e.lanes}% - ${inset * 2}px)`;
+}
+
+// Free gaps of 30+ min between from and 10pm, as text.
+function freeText(evs, from, day) {
+  const close = new Date(day.getTime() + 22 * 36e5);
+  const gaps = [];
+  let t = from;
+  evs.filter(e => !e.allDay).forEach(e => {
+    if (e.s - t >= 30 * 6e4) gaps.push([t, e.s]);
+    if (e.e > t) t = e.e;
+  });
+  if (close - t >= 30 * 6e4) gaps.push([t, close, true]);
+  if (!gaps.length) return 'no free blocks left';
+  return 'free ' + gaps.slice(0, 2).map(([a, b, last]) => last ? `after ${CC.fmtTA(a)}` : `${CC.fmtT(a)} to ${CC.fmtT(b)}`).join(' and ');
+}
+
+function goalCards() {
+  return data.goals.map(g => {
+    const pct = Math.min(100, Math.round(g.current / g.target * 100)) || 0;
+    return `<div class="goal c-${g.category}">
+      <div class="cat">${esc(g.category.toUpperCase())}</div>
+      <div class="name">${esc(g.goal)}</div>
+      <div class="prog"><div class="bar"><i style="width:${pct}%"></i></div><span>${g.current} of ${g.target} ${esc(g.unit)}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function taskList(tasks, max) {
+  if (!tasks.length) return '<div class="empty">Nothing on the list.</div>';
+  const extra = tasks.length - max;
+  return '<ul>' + tasks.slice(0, max).map(t => `<li class="c-${t.category}${t.done ? ' done' : ''}"><i class="ring">${t.done ? CHECK : ''}</i><span>${esc(t.task)}</span></li>`).join('') +
+    (extra > 0 ? `<li class="muted">+${extra} more</li>` : '') + '</ul>';
+}
+
+function month(n) {
+  const first = new Date(n.getFullYear(), n.getMonth(), 1);
+  const days = new Date(n.getFullYear(), n.getMonth() + 1, 0).getDate();
+  let cells = 'SMTWTFS'.split('').map(d => `<span class="dow">${d}</span>`).join('');
+  cells += '<span></span>'.repeat(first.getDay());
+  for (let d = 1; d <= days; d++) cells += d === n.getDate() ? `<span><span class="today">${d}</span></span>` : `<span>${d}</span>`;
+  return `<section class="card month"><div class="serif">${n.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</div><div class="g">${cells}</div></section>`;
+}
+
+function upNext(evs, n) {
+  const cur = evs.find(e => !e.allDay && e.s <= n && e.e > n);
+  const nxt = evs.find(e => !e.allDay && e.s > n);
+  const e = cur || nxt;
+  if (!e) return `<section class="card next"><div class="label">NOTHING ELSE TODAY</div><div class="t serif"><span>All clear</span></div><div class="sub">No more events on the calendar</div></section>`;
+  const label = cur ? `NOW · ENDS IN ${CC.fmtDur(e.e - n)}` : `UP NEXT · IN ${CC.fmtDur(e.s - n)}`;
+  return `<section class="card next c-${e.category}"><div class="label">${label}</div>
+    <div class="t serif"><i></i><span>${esc(e.title)}</span></div>
+    <div class="sub">${CC.fmtT(e.s)} to ${CC.fmtT(e.e)}${e.location ? ' · ' + esc(e.location) : ''}</div></section>`;
+}
+
+function eventBlock(e, n) {
+  const sub = `${CC.fmtT(e.s)} to ${CC.fmtT(e.e)}${e.location ? ' · ' + esc(e.location) : ''}`;
+  const shape = e.h >= 70 ? 'stack' : e.h >= 44 ? 'row' : 'one';
+  return `<div class="ev ${shape} c-${e.category}${e.e <= n ? ' past' : ''}" style="${laneStyle(e, 2)}"><b>${esc(e.title)}</b>${shape === 'one' ? '' : `<span class="sub">${sub}</span>`}</div>`;
+}
+
+function renderDay(n) {
+  const day = CC.startOfDay(n), PX = 40;
+  const evs = CC.eventsOn(data, day);
+  const timed = evs.filter(e => !e.allDay);
+  const allDay = evs.filter(e => e.allDay);
+  const tasks = CC.todaysTasks(data, day);
+  const done = tasks.filter(t => t.done).length;
+  const from = new Date(Math.max(n, day.getTime() + START * 36e5));
+  const y = (n - day) / 6e4 / 60 - START;
+  const now = y >= 0 && y <= END - START ? `<div class="nowline" style="left:54px;top:${y * PX - 1}px"></div><div class="nowdot" style="left:50px;top:${y * PX - 6}px"></div>` : '';
+  return `<main class="day">
+    <div class="col">
+      ${upNext(evs, n)}
+      <section class="card list"><div class="head"><h2>Today's list</h2><span class="muted" style="font-size:14px">${done} of ${tasks.length} done</span></div>${taskList(tasks, 5)}</section>
+      ${month(n)}
+    </div>
+    <section class="card sched">
+      <div class="sum"><b>${timed.length} event${timed.length === 1 ? '' : 's'}</b> · ${freeText(evs, from, day)}${allDay.length ? ' · all day: ' + allDay.map(e => esc(e.title)).join(', ') : ''}</div>
+      <div class="grid" style="height:${(END - START) * PX}px">
+        ${hourLines(PX, 1, 56)}
+        <div class="evs" style="left:62px">${placed(day, PX).map(e => eventBlock(e, n)).join('')}</div>
+        ${now}
+      </div>
+    </section>
+    <section class="card goals"><div class="head"><h2>Goals</h2><span class="muted" style="font-size:14px">this week</span></div>${goalCards()}</section>
+  </main>`;
+}
+
+function renderWeek(n) {
+  const wk = CC.startOfWeek(n), today = CC.startOfDay(n), PX = 32;
+  const days = [...Array(7)].map((_, i) => CC.addDays(wk, i));
+  const head = days.map(d => `<div class="${CC.sameDay(d, n) ? 'is' : d < today ? 'past' : ''}"><span class="dn">${d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}</span><span class="num">${d.getDate()}</span></div>`).join('');
+  const y = (n - today) / 6e4 / 60 - START;
+  const cols = days.map(d => {
+    const isToday = CC.sameDay(d, n);
+    const evs = placed(d, PX).map(e => {
+      const lines = Math.max(1, Math.floor((Math.max(e.h - 2, 22) - 6) / 19));
+      const clamp = lines > 1 ? `display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:${lines}` : 'white-space:nowrap;text-overflow:ellipsis';
+      return `<div class="ev c-${e.category}" style="${laneStyle(e, 3)};${clamp}">${esc(e.title)}</div>`;
+    }).join('');
+    const now = isToday && y >= 0 && y <= END - START ? `<div class="nowline" style="left:-4px;top:${y * PX - 1}px"></div><div class="nowdot" style="left:-6px;top:${y * PX - 5}px;width:11px;height:11px"></div>` : '';
+    return `<div class="${isToday ? 'is' : d < today ? 'past' : ''}">${evs}${now}</div>`;
+  }).join('');
+  const strip = data.goals.map(g => {
+    const pct = Math.min(100, Math.round(g.current / g.target * 100)) || 0;
+    return `<div class="goal c-${g.category}"><div class="top"><span>${esc(g.goal)}</span><span>${g.current} of ${g.target}</span></div><div class="bar"><i style="width:${pct}%"></i></div></div>`;
+  }).join('');
+  return `<main class="week">
+    <section class="card wk">
+      <div class="wkhead">${head}</div>
+      <div class="grid" style="height:${(END - START) * PX}px">${hourLines(PX, 2, 50)}<div class="cols">${cols}</div></div>
+    </section>
+    <section class="strip">${strip}</section>
+  </main>`;
+}
+
+function renderTomorrow(n) {
+  const tm = CC.addDays(CC.startOfDay(n), 1);
+  const evs = CC.eventsOn(data, tm);
+  const first = evs.find(e => !e.allDay);
+  const lead = !evs.length ? 'Nothing on the calendar.' : first && first.s.getHours() >= 11 ? `Free until ${CC.fmtTA(first.s)}. Good morning for deep work.` : `${evs.length} event${evs.length === 1 ? '' : 's'}, starting ${first ? CC.fmtTA(first.s) : 'all day'}.`;
+  const rows = evs.slice(0, 5).map(e => `<div class="r"><div class="tm">${e.allDay ? 'All day' : CC.fmtT(e.s)}</div>
+    <div class="ev stack c-${e.category}"><b>${esc(e.title)}</b><span class="sub">${e.allDay ? '' : `${CC.fmtT(e.s)} to ${CC.fmtT(e.e)} · `}${esc(e.location || e.category)}</span></div></div>`).join('');
+  const open = data.tasks.filter(t => !t.done);
+  return `<main class="night">
+    <section class="card panel"><h2>On the calendar</h2><div class="muted" style="font-size:18px">${lead}</div><div class="agenda">${rows}</div></section>
+    <section class="card panel list"><div class="head"><h2>Carried over</h2><span class="muted" style="font-size:15px">${open.length} open</span></div>${taskList(open, 7)}</section>
+    <section class="card goals"><div class="head"><h2>Goals</h2></div>${goalCards()}</section>
+  </main>`;
+}
+
+function render() {
+  const n = CC.now(), hr = n.getHours();
+  document.body.classList.toggle('dark', hr >= DARK_FROM || hr < DARK_UNTIL);
+  if (!data) { stage.innerHTML = `<main style="display:flex;align-items:center;justify-content:center;font-size:24px" class="muted">${CC.hasToken() ? 'Loading…' : 'Open this page once with ?token=YOUR_TOKEN'}</main>`; return; }
+
+  const tomorrow = view === 'day' && hr >= NIGHT_FROM;
+  const shown = tomorrow ? CC.addDays(n, 1) : n;
+  let title;
+  if (view === 'week') {
+    const a = CC.startOfWeek(n), b = CC.addDays(a, 6);
+    title = a.getMonth() === b.getMonth()
+      ? `${a.toLocaleDateString('en-US', { month: 'long' })} ${a.getDate()} to ${b.getDate()}`
+      : `${a.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} to ${b.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+  } else title = CC.fmtDate(shown);
+
+  const sync = CC.mock ? 'Demo data'
+    : failed ? `<span class="warn">Offline</span> · showing data from ${CC.ago(syncedAt)}`
+    : `Synced ${CC.ago(syncedAt)}`;
+
+  stage.innerHTML = `
+    <header>
+      <span class="pill${tomorrow ? ' on' : ''}">${tomorrow ? 'Tomorrow' : 'Today'}</span>${ARROWS}
+      <h1>${title}</h1>
+      <div class="switch"><span class="${view === 'day' ? 'on' : ''}">Day</span><span class="${view === 'week' ? 'on' : ''}">Week</span></div>
+      <div class="clock">${CC.fmtT(n)}<small>${hr < 12 ? 'AM' : 'PM'}</small></div>
+    </header>
+    ${view === 'week' ? renderWeek(n) : tomorrow ? renderTomorrow(n) : renderDay(n)}
+    <footer>
+      <div class="dots"><i class="${view === 'day' ? 'on' : ''}"></i><i class="${view === 'week' ? 'on' : ''}"></i><span style="margin-left:6px">${view === 'day' ? 'Week' : 'Day'} view next</span></div>
+      <div>${sync}</div>
+    </footer>`;
+}
+
+async function load() {
+  try {
+    data = await CC.get();
+    syncedAt = Date.now();
+    failed = false;
+    if (!CC.mock) CC.store.set('cc-tv-last', { data, at: syncedAt });
+  } catch (err) {
+    failed = true; // keep the last good data on screen
+    console.warn('Refresh failed', err);
+  }
+  shift++; fit(); render();
+}
+
+let cycle;
+function restartCycle() {
+  clearInterval(cycle);
+  cycle = setInterval(() => { view = view === 'day' ? 'week' : 'day'; render(); }, 30e3);
+}
+
+// Fire TV d-pad: left/right switch views, center (Enter) returns to today's Day view.
+addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') view = view === 'day' ? 'week' : 'day';
+  else if (e.key === 'Enter' || e.keyCode === 13 || e.keyCode === 23) view = 'day';
+  else return;
+  e.preventDefault();
+  restartCycle(); render();
+});
+addEventListener('resize', fit);
+
+fit(); render(); load();
+restartCycle();
+setInterval(render, 30e3);   // clock, now line, "synced X min ago"
+setInterval(load, 5 * 60e3); // data
+</script>
+</body>
+</html>

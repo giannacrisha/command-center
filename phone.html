@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Command">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#fffdfa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)">
+<title>Command Center</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700&family=Lora:wght@600&display=swap">
+<style>
+:root {
+  --bg: #fffdfa; --text: #3d2f1f; --heading: #90642f; --card: #ffffff; --muted: #6B5234;
+  --soft: #EDE5D8; --border: #E8DCC8; --grid: #F1EADF; --now: #e5534b; --ink: #3d2f1f; --on-ink: #fffdfa;
+  --shadow: 0 4px 16px rgba(144,100,47,.12); --track: rgba(255,255,255,.75);
+  --tabs: calc(64px + env(safe-area-inset-bottom));
+}
+.c-Academic { --fill: #DCE6F0; --acc: #3F5F80; }
+.c-Career   { --fill: #F3E7C4; --acc: #7A5B12; }
+.c-Social   { --fill: #F5DCC8; --acc: #8A4A22; }
+.c-Personal { --fill: #E2EAD8; --acc: #4C6B3F; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #1a1a1a; --text: #e8e0d0; --heading: #d8af78; --card: #242424; --muted: #a89a85;
+    --soft: #2e2a24; --border: #333; --grid: #2c2c2c; --ink: #d8af78; --on-ink: #1a1a1a; --shadow: none; --track: rgba(255,255,255,.1); }
+  .c-Academic { --fill: #1f2a35; --acc: #8fb3d6; }
+  .c-Career   { --fill: #2f2919; --acc: #d9b45a; }
+  .c-Social   { --fill: #33241b; --acc: #e09a6a; }
+  .c-Personal { --fill: #232b1f; --acc: #9cbf86; }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { background: var(--bg); }
+body {
+  margin: 0; color: var(--text); font-family: 'Atkinson Hyperlegible Next', sans-serif; font-size: 17px; line-height: 1.4;
+  padding: env(safe-area-inset-top) 0 calc(var(--tabs) + 24px);
+}
+body.with-bar { padding-bottom: calc(var(--tabs) + 100px); }
+main { max-width: 560px; margin: 0 auto; padding: 20px 20px 0; display: flex; flex-direction: column; gap: 22px; }
+h1, h2.serif { font-family: Lora, serif; font-weight: 600; margin: 0; color: var(--heading); }
+h1 { font-size: 30px; line-height: 1.15; }
+h2 { margin: 0; font-size: 14px; font-weight: 700; letter-spacing: .08em; color: var(--muted); }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.small { font-size: 14px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+section { display: flex; flex-direction: column; gap: 8px; }
+.head { display: flex; flex-direction: column; gap: 4px; }
+.row { display: flex; align-items: center; gap: 10px; }
+
+.primary { width: 100%; min-height: 56px; border: none; border-radius: 999px; background: var(--ink); color: var(--on-ink); font-size: 18px; font-weight: 700; }
+.primary:disabled { opacity: .5; }
+.ghost { min-height: 44px; border: none; background: none; color: var(--heading); font-weight: 700; padding: 0 10px; display: inline-flex; align-items: center; gap: 4px; }
+.icon { width: 44px; height: 44px; border: none; border-radius: 12px; background: none; color: var(--muted); display: flex; align-items: center; justify-content: center; flex: none; }
+
+/* agenda */
+.ag { display: flex; gap: 12px; align-items: stretch; }
+.ag .tm { width: 52px; flex: none; text-align: right; padding-top: 8px; font-size: 15px; font-weight: 700; }
+.ag .tm small { display: block; font-weight: 400; color: var(--muted); font-size: 13px; }
+.evc { flex: 1; min-width: 0; min-height: 44px; background: var(--fill); border-left: 4px solid var(--acc); border-radius: 10px; padding: 9px 12px; display: flex; flex-direction: column; justify-content: center; }
+.evc b { font-size: 17px; }
+.evc span { font-size: 14px; color: var(--muted); }
+.past { opacity: .55; }
+.now { display: flex; align-items: center; gap: 8px; color: var(--now); font-size: 13px; font-weight: 700; }
+.now::after { content: ''; flex: 1; height: 2px; background: var(--now); border-radius: 1px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { background: var(--fill); color: var(--text); border-radius: 999px; padding: 6px 12px; font-size: 14px; font-weight: 700; }
+.empty { color: var(--muted); padding: 4px 0; }
+
+/* tasks */
+.task { min-height: 52px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid var(--grid); cursor: pointer; }
+.task:last-child { border-bottom: none; }
+.task input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.box { width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--acc); flex: none; display: flex; align-items: center; justify-content: center; }
+.task input:checked + .box { background: var(--acc); }
+.task input:focus-visible + .box { outline: 3px solid var(--heading); outline-offset: 2px; }
+.box svg { display: none; }
+.task input:checked + .box svg { display: block; }
+.task .t { flex: 1; }
+.task input:checked ~ .t { color: var(--muted); text-decoration: line-through; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--acc); flex: none; }
+
+/* week */
+.day h2 { display: flex; align-items: center; gap: 8px; color: var(--text); letter-spacing: 0; font-size: 17px; }
+.day h2 .badge { font-size: 12px; letter-spacing: .08em; background: var(--heading); color: var(--card); border-radius: 999px; padding: 2px 8px; }
+.wrow { min-height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 12px; background: var(--fill); border-left: 4px solid var(--acc); border-radius: 8px; }
+.wrow .tm { width: 48px; font-size: 14px; font-weight: 700; color: var(--muted); flex: none; }
+.wrow b { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 16px; }
+
+/* goals */
+.goal { width: 100%; text-align: left; border: none; background: var(--fill); border-radius: 24px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow); }
+.goal .cat { font-size: 13px; font-weight: 700; letter-spacing: .1em; color: var(--acc); }
+.goal .name { font-size: 19px; font-weight: 700; line-height: 1.25; }
+.bar { flex: 1; height: 8px; border-radius: 4px; background: var(--track); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--acc); border-radius: 4px; }
+.prog { display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 700; }
+.stepper { display: flex; align-items: center; gap: 8px; }
+.stepper button { width: 52px; height: 52px; border-radius: 50%; border: 2px solid var(--acc); background: var(--card); font-size: 24px; font-weight: 700; color: var(--acc); }
+.stepper input { width: 90px; height: 52px; text-align: center; font: inherit; font-size: 22px; font-weight: 700; border: 2px solid var(--border); border-radius: 14px; background: var(--card); color: var(--text); }
+.stepper .unit { color: var(--muted); font-size: 15px; }
+.goal-actions { display: flex; gap: 10px; }
+.goal-actions .primary { min-height: 48px; font-size: 16px; }
+.goal-actions .ghost { min-width: 90px; justify-content: center; }
+
+/* capture */
+label.field { display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 700; color: var(--muted); }
+textarea {
+  height: 230px; resize: none; border: 2px solid var(--border); border-radius: 24px; background: var(--card); padding: 16px 18px;
+  font: inherit; font-size: 18px; line-height: 1.45; color: var(--text); box-shadow: var(--shadow);
+}
+textarea:focus { outline: none; border-color: var(--heading); }
+textarea::placeholder { color: var(--muted); font-weight: 400; opacity: .7; }
+.prop { flex: 1; min-width: 0; background: color-mix(in srgb, var(--fill) 55%, transparent); border: 2px dashed var(--acc); border-radius: 12px; padding: 10px 4px 10px 14px; display: flex; flex-direction: column; gap: 8px; }
+.prop .top { display: flex; align-items: center; gap: 2px; }
+.prop .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.prop .k { font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--acc); }
+.prop b { font-size: 17px; }
+.prop span { font-size: 14px; color: var(--muted); }
+.prop .edit { display: flex; gap: 10px; align-items: flex-end; padding-right: 10px; flex-wrap: wrap; }
+.prop .edit label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.prop .edit input { height: 44px; font: inherit; font-size: 17px; border: 2px solid var(--border); border-radius: 10px; padding: 0 8px; background: var(--card); color: var(--text); }
+.prop .edit input[type=number] { width: 84px; }
+.prop .edit .ghost { padding: 0 6px; }
+.ag.sm .tm { padding-top: 0; align-self: center; font-size: 14px; }
+.ag.sm .evc { min-height: 40px; padding: 0 12px; }
+.ag.sm .evc b { font-size: 16px; }
+.qt { min-height: 52px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--grid); }
+.qt:last-child { border-bottom: none; }
+.qt .ring { width: 18px; height: 18px; border-radius: 50%; border: 3px solid var(--acc); flex: none; }
+.qt .t { flex: 1; }
+.qt small { color: var(--muted); font-size: 14px; }
+
+#bar { position: fixed; left: 0; right: 0; bottom: var(--tabs); background: var(--bg); border-top: 1px solid var(--border); padding: 12px 20px 8px; display: none; }
+#bar.on { display: block; }
+#bar > div { max-width: 520px; margin: 0 auto; }
+
+nav.tabs {
+  position: fixed; left: 0; right: 0; bottom: 0; height: var(--tabs); padding-bottom: env(safe-area-inset-bottom);
+  background: var(--bg); border-top: 1px solid var(--border); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+nav.tabs button { border: none; background: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 12px; font-weight: 700; color: var(--muted); }
+nav.tabs button[aria-current=page] { color: var(--heading); }
+
+#toast { position: fixed; left: 50%; bottom: calc(var(--tabs) + 16px); transform: translate(-50%, 20px); opacity: 0; transition: .2s; pointer-events: none;
+  background: var(--ink); color: var(--on-ink); border-radius: 999px; padding: 12px 20px; font-weight: 700; font-size: 15px; max-width: calc(100% - 40px); text-align: center; }
+#toast.on { opacity: 1; transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+<main id="view"></main>
+<div id="bar"><div></div></div>
+<nav class="tabs" aria-label="Tabs">
+  <button data-tab="today"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Today</button>
+  <button data-tab="week"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h14"/></svg>Week</button>
+  <button data-tab="goals"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>Goals</button>
+  <button data-tab="capture"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg>Capture</button>
+</nav>
+<div id="toast" role="status"></div>
+<script src="shared.js"></script>
+<script>
+const NAME = 'Gi';
+const { esc } = CC;
+const $view = document.getElementById('view');
+const $bar = document.getElementById('bar');
+
+const ICON = {
+  back: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>',
+  edit: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>',
+  x: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  check: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--card)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>',
+};
+
+const state = {
+  tab: CC.now().getHours() < 11 ? 'capture' : 'today',
+  data: null, syncedAt: 0, error: '',
+  goalEdit: null,
+  cap: { stage: 'input', text: CC.store.get('cc-draft') || '', blocks: [], tasks: [], editing: null, busy: false },
+};
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 2600);
+}
+
+const pct = g => Math.min(100, Math.round(g.current / g.target * 100)) || 0;
+const syncLine = () => CC.mock ? 'Demo data' : state.error ? `Couldn't refresh · last synced ${CC.ago(state.syncedAt)}` : `Synced ${CC.ago(state.syncedAt)}`;
+
+// ---------- views ----------
+function viewSetup() {
+  return `<div class="head"><h1>Connect this phone</h1><p class="muted">Paste the secret token from your Apps Script setup. It stays on this device.</p></div>
+    <form data-act="token" style="display:flex;flex-direction:column;gap:12px">
+      <label class="field">Token<input name="t" autocomplete="off" autocapitalize="off" style="height:52px;font:inherit;font-size:17px;border:2px solid var(--border);border-radius:14px;padding:0 14px;background:var(--card);color:var(--text)"></label>
+      <button class="primary">Save</button>
+    </form>`;
+}
+
+function viewToday() {
+  const n = CC.now(), day = CC.startOfDay(n), d = state.data;
+  const evs = CC.eventsOn(d, day);
+  const allDay = evs.filter(e => e.allDay), timed = evs.filter(e => !e.allDay);
+  let rows = '', nowShown = false;
+  timed.forEach(e => {
+    if (!nowShown && e.s > n) { rows += `<div class="now">NOW · ${CC.fmtTA(n)}</div>`; nowShown = true; }
+    rows += `<div class="ag${e.e <= n ? ' past' : ''}"><div class="tm">${CC.fmtT(e.s)}<small>${CC.fmtT(e.e)}</small></div>
+      <div class="evc c-${e.category}"><b>${esc(e.title)}</b>${e.location ? `<span>${esc(e.location)}</span>` : ''}</div></div>`;
+  });
+  if (!nowShown && timed.length) rows += `<div class="now">NOW · ${CC.fmtTA(n)}</div>`;
+  const tasks = CC.todaysTasks(d, day);
+  const done = tasks.filter(t => t.done).length;
+  const today = CC.isoDate(day);
+  return `<div class="head"><h1>${CC.fmtDate(n)}</h1><p class="muted small">${syncLine()}</p></div>
+    <section><h2>SCHEDULE</h2>
+      ${allDay.length ? `<div class="chips">${allDay.map(e => `<span class="chip c-${e.category}">${esc(e.title)}</span>`).join('')}</div>` : ''}
+      ${rows || '<p class="empty">Nothing on the calendar today.</p>'}
+    </section>
+    <section><div class="row" style="justify-content:space-between"><h2>TASKS</h2><span class="muted small">${done} of ${tasks.length} done</span></div>
+      <div>${tasks.map(t => `<label class="task c-${t.category}"><input type="checkbox" data-row="${t.row}" ${t.done ? 'checked' : ''}><span class="box">${ICON.check}</span><span class="t">${esc(t.task)}</span>${t.due && t.due !== today ? `<span class="muted small">${new Date(t.due + 'T12:00').toLocaleDateString('en-US', { weekday: 'short' })}</span>` : ''}</label>`).join('') || '<p class="empty">Nothing on the list.</p>'}</div>
+    </section>`;
+}
+
+function viewWeek() {
+  const n = CC.now(), wk = CC.startOfWeek(n), today = CC.startOfDay(n);
+  const a = wk, b = CC.addDays(wk, 6);
+  const days = [...Array(7)].map((_, i) => {
+    const d = CC.addDays(wk, i);
+    const evs = CC.eventsOn(state.data, d);
+    return `<section class="day${d < today ? ' past' : ''}"><h2>${d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}${CC.sameDay(d, n) ? '<span class="badge">TODAY</span>' : ''}</h2>
+      ${evs.map(e => `<div class="wrow c-${e.category}"><span class="tm">${e.allDay ? 'All day' : CC.fmtT(e.s)}</span><b>${esc(e.title)}</b></div>`).join('') || '<p class="empty">Nothing scheduled.</p>'}</section>`;
+  }).join('');
+  return `<div class="head"><h1>${a.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} to ${b.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</h1><p class="muted small">${syncLine()}</p></div>${days}`;
+}
+
+function viewGoals() {
+  return `<div class="head"><h1>Goals</h1><p class="muted small">Tap a goal to update it.</p></div>` + state.data.goals.map(g => {
+    if (state.goalEdit === g.row) return `<form class="goal c-${g.category}" data-act="goal" data-row="${g.row}">
+      <div class="cat">${esc(g.category.toUpperCase())}</div><div class="name">${esc(g.goal)}</div>
+      <div class="stepper"><button type="button" data-step="-1" aria-label="Decrease">−</button>
+        <input name="v" type="number" inputmode="decimal" value="${g.current}" aria-label="Current progress">
+        <button type="button" data-step="1" aria-label="Increase">+</button><span class="unit">of ${g.target} ${esc(g.unit)}</span></div>
+      <div class="goal-actions"><button class="primary">Save</button><button type="button" class="ghost" data-act="goal-cancel">Cancel</button></div></form>`;
+    return `<button class="goal c-${g.category}" data-act="goal-open" data-row="${g.row}">
+      <span class="cat">${esc(g.category.toUpperCase())}</span><span class="name">${esc(g.goal)}</span>
+      <span class="prog"><span class="bar"><i style="width:${pct(g)}%"></i></span>${g.current} of ${g.target} ${esc(g.unit)}</span></button>`;
+  }).join('');
+}
+
+function viewCapture() {
+  const c = state.cap, h = CC.now().getHours();
+  if (c.stage !== 'review') {
+    return `<div class="head"><h1>Good ${h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening'}, ${NAME}</h1>
+      <p class="muted">Switch to the Wispr Flow keyboard and talk through your day.</p></div>
+      <label class="field">What's on your plate<textarea id="dump" autofocus placeholder="I need to…">${esc(c.text)}</textarea></label>
+      <button class="primary" data-act="sort" ${c.busy ? 'disabled' : ''}>${c.busy ? 'Sorting…' : 'Sort my day'}</button>
+      <p class="muted small" style="text-align:center">Nothing is added until you approve.</p>`;
+  }
+  const n = CC.now();
+  const items = CC.eventsOn(state.data, CC.startOfDay(n)).filter(e => !e.allDay && e.e > n).map(e => ({ kind: 'event', at: e.s, e }))
+    .concat(c.blocks.map(b => ({ kind: 'block', at: new Date(b.start), b })))
+    .sort((x, y) => x.at - y.at);
+  const list = items.map(it => it.kind === 'event'
+    ? `<div class="ag sm"><div class="tm">${CC.fmtT(it.e.s)}</div><div class="evc c-${it.e.category}"><b>${esc(it.e.title)}</b></div></div>`
+    : blockRow(it.b)).join('');
+  return `<div class="head"><button class="ghost" data-act="back" style="align-self:flex-start;margin-left:-10px">${ICON.back}Edit what I said</button>
+      <h1>Your day, sorted</h1><p class="muted">${summary()}</p></div>
+    <section><h2>REST OF TODAY</h2>${list || '<p class="empty">No blocks proposed.</p>'}</section>
+    <section><h2>QUICK TASKS · ADDED TO TODAY'S LIST</h2><div>
+      ${c.tasks.map(t => `<div class="qt c-${t.category}"><span class="ring"></span><span class="t">${esc(t.title)}${t.noSlot ? '<br><small>No free slot today, added to the list</small>' : ''}</span><small>${t.minutes} min</small><button class="icon" data-act="rm-task" data-id="${t.id}" aria-label="Remove ${esc(t.title)}">${ICON.x}</button></div>`).join('') || '<p class="empty">None.</p>'}
+    </div></section>`;
+}
+
+function blockRow(b) {
+  const s = new Date(b.start), e = new Date(b.end);
+  const editing = state.cap.editing === b.id;
+  const hhmm = `${String(s.getHours()).padStart(2, '0')}:${String(s.getMinutes()).padStart(2, '0')}`;
+  return `<div class="ag c-${b.category}"><div class="tm" style="color:var(--acc);padding-top:14px">${CC.fmtT(s)}</div>
+    <div class="prop c-${b.category}"><div class="top"><div class="info"><span class="k">PROPOSED · ${esc(b.category.toUpperCase())}</span><b>${esc(b.title)}</b><span>${CC.fmtT(s)} to ${CC.fmtT(e)} · ${b.minutes} min</span></div>
+      <button class="icon" data-act="edit" data-id="${b.id}" aria-label="Edit ${esc(b.title)}" aria-expanded="${editing}">${ICON.edit}</button>
+      <button class="icon" data-act="rm-block" data-id="${b.id}" aria-label="Remove ${esc(b.title)}">${ICON.x}</button></div>
+      ${editing ? `<div class="edit"><label>Start<input type="time" data-f="start" data-id="${b.id}" value="${hhmm}"></label><label>Minutes<input type="number" min="5" step="5" inputmode="numeric" data-f="minutes" data-id="${b.id}" value="${b.minutes}"></label><button class="ghost" data-act="edit" data-id="${b.id}">Done</button></div>` : ''}
+    </div></div>`;
+}
+
+function summary() {
+  const b = state.cap.blocks.length, t = state.cap.tasks.length;
+  return `${b} block${b === 1 ? '' : 's'} in your free time, ${t} quick task${t === 1 ? '' : 's'} for the list.`;
+}
+
+function render() {
+  document.querySelectorAll('nav.tabs button').forEach(b => b.dataset.tab === state.tab ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
+  const review = state.tab === 'capture' && state.cap.stage === 'review';
+  $bar.classList.toggle('on', review);
+  document.body.classList.toggle('with-bar', review);
+  if (review) {
+    const b = state.cap.blocks.length, t = state.cap.tasks.length;
+    $bar.firstElementChild.innerHTML = `<button class="primary" data-act="approve" ${b + t === 0 || state.cap.busy ? 'disabled' : ''}>${state.cap.busy ? 'Adding…' : b + t ? `Approve ${b ? `${b} block${b === 1 ? '' : 's'}` : ''}${b && t ? ' and ' : ''}${t ? `${t} task${t === 1 ? '' : 's'}` : ''}` : 'Nothing to approve'}</button>`;
+  }
+  if (!CC.hasToken()) { $view.innerHTML = viewSetup(); return; }
+  if (!state.data && state.tab !== 'capture') { $view.innerHTML = `<p class="muted">${state.error ? esc(state.error) : 'Loading…'}</p>`; return; }
+  $view.innerHTML = { today: viewToday, week: viewWeek, goals: viewGoals, capture: viewCapture }[state.tab]();
+  if (state.tab === 'capture' && state.cap.stage === 'input') document.getElementById('dump')?.focus({ preventScroll: true });
+}
+
+// ---------- actions ----------
+async function load() {
+  if (!CC.hasToken()) return render();
+  try {
+    state.data = await CC.get();
+    state.syncedAt = Date.now(); state.error = '';
+  } catch (err) {
+    state.error = err.message;
+  }
+  // Don't redraw over the textarea while someone is typing in it.
+  if (!(state.tab === 'capture' && state.cap.stage === 'input')) render();
+}
+
+async function sort() {
+  const c = state.cap;
+  if (!c.text.trim()) return toast('Say what is on your plate first.');
+  c.busy = true; render();
+  try {
+    const r = await CC.post('sort', { text: c.text });
+    c.blocks = r.blocks;
+    c.tasks = r.tasks.concat((r.unscheduled || []).map(t => ({ ...t, noSlot: true })));
+    c.stage = 'review';
+  } catch (err) { toast(`Couldn't sort: ${err.message}`); }
+  c.busy = false; render();
+}
+
+async function approve() {
+  const c = state.cap;
+  if (c.busy) return;
+  c.busy = true; render();
+  try {
+    await CC.post('approve', { blocks: c.blocks, tasks: c.tasks });
+    toast(`Added ${c.blocks.length} block${c.blocks.length === 1 ? '' : 's'} and ${c.tasks.length} task${c.tasks.length === 1 ? '' : 's'}`);
+    Object.assign(c, { stage: 'input', text: '', blocks: [], tasks: [], editing: null });
+    CC.store.set('cc-draft', '');
+    state.tab = 'today';
+    load();
+  } catch (err) { toast(`Couldn't approve: ${err.message}`); }
+  c.busy = false; render();
+}
+
+async function toggleTask(row, done, input) {
+  const t = state.data.tasks.find(x => x.row === row);
+  const prev = t.doneOn;
+  t.done = done; t.doneOn = done ? CC.isoDate(CC.now()) : ''; // optimistic
+  try { await CC.post('taskDone', { row, task: t.task, done }); render(); }
+  catch (err) { t.done = !done; t.doneOn = prev; input.checked = !done; toast(`Couldn't save: ${err.message}`); }
+}
+
+async function saveGoal(form) {
+  const row = +form.dataset.row, g = state.data.goals.find(x => x.row === row);
+  const v = parseFloat(form.v.value);
+  if (Number.isNaN(v)) return toast('Enter a number.');
+  const prev = g.current;
+  g.current = v; state.goalEdit = null; render();
+  try { await CC.post('goalProgress', { row, goal: g.goal, current: v }); }
+  catch (err) { g.current = prev; render(); toast(`Couldn't save: ${err.message}`); }
+}
+
+function setBlockTime(id, field, value) {
+  const b = state.cap.blocks.find(x => x.id === id);
+  const s = new Date(b.start);
+  if (field === 'start') {
+    const [h, m] = value.split(':').map(Number);
+    if (Number.isNaN(h)) return;
+    s.setHours(h, m, 0, 0);
+  } else {
+    const mins = parseInt(value, 10);
+    if (!(mins > 0)) return;
+    b.minutes = mins;
+  }
+  b.start = s.toISOString();
+  b.end = new Date(s.getTime() + b.minutes * 6e4).toISOString();
+}
+
+document.addEventListener('click', e => {
+  const tab = e.target.closest('[data-tab]');
+  if (tab) { state.tab = tab.dataset.tab; state.goalEdit = null; render(); scrollTo(0, 0); return; }
+  const step = e.target.closest('[data-step]');
+  if (step) { const input = step.form.v; input.value = Math.max(0, (parseFloat(input.value) || 0) + +step.dataset.step); return; }
+  const el = e.target.closest('[data-act]');
+  if (!el || el.tagName === 'FORM') return;
+  const c = state.cap, id = el.dataset.id;
+  switch (el.dataset.act) {
+    case 'sort': sort(); break;
+    case 'approve': approve(); break;
+    case 'back': c.stage = 'input'; render(); break;
+    case 'edit': c.editing = c.editing === id ? null : id; render(); break;
+    case 'rm-block': c.blocks = c.blocks.filter(b => b.id !== id); render(); break;
+    case 'rm-task': c.tasks = c.tasks.filter(t => t.id !== id); render(); break;
+    case 'goal-open': state.goalEdit = +el.dataset.row; render(); break;
+    case 'goal-cancel': state.goalEdit = null; render(); break;
+  }
+});
+
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.matches('.task input')) toggleTask(+t.dataset.row, t.checked, t);
+  else if (t.dataset.f) { setBlockTime(t.dataset.id, t.dataset.f, t.value); render(); }
+});
+
+document.addEventListener('input', e => {
+  if (e.target.id === 'dump') { state.cap.text = e.target.value; CC.store.set('cc-draft', e.target.value); }
+});
+
+document.addEventListener('submit', e => {
+  e.preventDefault();
+  const f = e.target;
+  if (f.dataset.act === 'goal') saveGoal(f);
+  if (f.dataset.act === 'token' && f.t.value.trim()) { CC.setToken(f.t.value.trim()); load(); render(); }
+});
+
+document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+setInterval(load, 5 * 60e3);
+render(); load();
+</script>
+</body>
+</html>
